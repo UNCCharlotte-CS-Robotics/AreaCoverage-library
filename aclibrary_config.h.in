@@ -1,0 +1,2 @@
+#define aclibrary_VERSION_MAJOR @aclibrary_VERSION_MAJOR@
+#define aclibrary_VERSION_MINOR @aclibrary_VERSION_MINOR@
