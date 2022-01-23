@@ -49,7 +49,7 @@ list(TRANSFORM aclibrary-src-files PREPEND "${PROJECT_SOURCE_DIR}/src/")
 add_library(aclibrary ${aclibrary-type} "")
 
 target_compile_options(aclibrary PRIVATE
-	-O2 -fPIC -g
+	-O2 -fPIC
 	-Wall -pedantic)
 # -Wextra -Wshadow -Weffc++ -Wno-long-long
 # -pedantic -pedantic-errors)
