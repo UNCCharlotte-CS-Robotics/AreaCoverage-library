@@ -1,0 +1,86 @@
+# Default configuration for the AreaCoverage-library in YAML format
+
+database:
+  path:     'AreaCoverage-dataset'
+  data_dir: 'RAL_main'
+
+# Lateral field-of-view (offset)
+field_of_view: 4
+
+# Allow travel over obstacles (holes), e.g., UAV flying over buildings
+travel_over_holes: false
+
+# 'point' for point robot (AC300)
+# 'custom' for a custom robot of finite size; need to provide a robot_polygon file (VM25)
+robot_model: 'point'
+
+# Set true if the environment has GPS coordinates for the vertices of the environment
+env_with_geo: false
+
+# 'euclidean' for euclidean distance
+# 'ramp' for euclidean distance
+# 'travel time' for asymmetric travel time based on speed (see travel_time_config)
+cost_function: 'ramp'
+
+travel_time_config:
+  service_speed:  5.0
+  deadhead_speed: 8.0
+  wind_speed:     0.0
+  wind_dir:       45
+
+ramp_config:
+  speed:        3.0
+  acceleration: 1.0
+
+# Set the capacity for the robots
+capacity: 600
+
+plot_service_tracks:
+  name:             'service_tracks'
+  plot:             true
+  plot_nreq_edges:  false
+
+writeGeoJSON:
+  write:          false
+  filename:       'graph.json'
+  var_name:       'graph_data'
+  non_req_edges:  false
+
+output:
+  env_data:     true
+  kml:          false
+  data:         false
+  geojson:      false
+  edge_data:    false
+  agg_results:  true
+  append:       false
+  clear_dir:    false
+
+filenames:
+  outer_polygon:  'outer_polygon' # (input file:  the outer boundary of the environment)
+  holes:          'holes'         # (input file:  obstacle/holes)
+  robot_polygon:  'robot_polygon' # (input file:  polygon describing the robot)
+  env_data:       'env_data'      # (output file: environment information)
+  tracks:         'tracks'        # (output file: service tracks)
+  init_decomp:    'init_decomp'   # (output file: initial decomposition data)
+  final_decomp:   'final_decomp'  # (output file: final decomposition data)
+  coverage:       'coverage'      # (output file: coverage)
+  results:        'results'       # (output file: results)
+  route_data:     'route_data'    # (output file: route data)
+
+# configuration used only when env_with_geo is true
+geo_filenames:
+  nodes_ll:       'nodes_ll'      # (input file: list of <node_id latitude longitude>)
+  outer_nodes:    'outer_nodes'   # (input file: list of node_ids for outer polygon)
+  holes_nodes:    'holes_nodes'   # (input file: list of node_ids for hole polygons)
+
+# The following options are not implemented yet
+# These are all false for 'point' robot and true for 'custom' robot
+
+# Add boundary of the workspace to the list of service tracks
+add_boundary_edges: false
+
+# configuration for computing free space if robot_model is set to custom
+offset_outer_boundary:  false # offsets the outer boudary by field_of_view/2
+minkowski_sum:          false # computes minkowski sum of obstacles with robot
+
