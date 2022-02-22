@@ -7,15 +7,17 @@ The algorithms are described in the following papers. Please cite our publicatio
 > Agarwal S and Akella S (2020)  
 > In: IEEE Robotics Automation and Letters (RA-L), vol. 7, no. 2, pp. 3734-3741, April 2022, doi: 10.1109/LRA.2022.3146952.
 
-> @ARTICLE{9697431,  
-> author={Agarwal, Saurav and Akella, Srinivas},  
-> journal={IEEE Robotics and Automation Letters},   
-> title={Area Coverage With Multiple Capacity-Constrained Robots},  
-> year={2022},  
-> volume={7},  
-> number={2},  
-> pages={3734--3741},  
-> doi={10.1109/LRA.2022.3146952}}  
+```
+@article{AgarwalA22RAL,  
+author={Agarwal, Saurav and Akella, Srinivas},  
+journal={IEEE Robotics and Automation Letters},   
+title={Area Coverage With Multiple Capacity-Constrained Robots},  
+year={2022},  
+volume={7},  
+number={2},  
+pages={3734--3741},  
+doi={10.1109/LRA.2022.3146952}}  
+```
 
 
 The library uses the LineCoverage-library given in the repository:
