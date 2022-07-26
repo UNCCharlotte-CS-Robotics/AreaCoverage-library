@@ -85,7 +85,7 @@ namespace aclibrary {
 			lc_v.SetXY(CGAL::to_double(vertices[i].x()), CGAL::to_double(vertices[i].y()));
 			if(lla_to_xy != nullptr) {
 				double lat, lon, alt;
-				lla_to_xy->flatToLLA(CGAL::to_double(vertices[i].x()), CGAL::to_double(vertices[i].y()), 0.0, lat, lon, alt);
+				lla_to_xy->flatToLLA(CGAL::to_double(vertices[i].x()), CGAL::to_double(vertices[i].y()), 300.0, lat, lon, alt);
 				lc_v.SetLLA(lat, lon, alt);
 			}
 			lc_vertices.push_back(lc_v);
@@ -243,15 +243,17 @@ namespace aclibrary {
 		outer_polygon_file.close();
 		outer_polygon_nodefile.close();
 
-		std::ofstream holes_file(config.database.dir + config.filenames.holes);
-		std::ifstream holes_nodefile(config.database.dir + config.holes_nodes);
-		holes_file.precision(16);
-		while(holes_nodefile >> node_id) {
-			auto node = node_map[node_id];
-			holes_file << node_list[node].x << " " << node_list[node].y << std::endl;
+		if(std::filesystem::exists(config.database.dir + config.holes_nodes)) {
+			std::ofstream holes_file(config.database.dir + config.filenames.holes);
+			std::ifstream holes_nodefile(config.database.dir + config.holes_nodes);
+			holes_file.precision(16);
+			while(holes_nodefile >> node_id) {
+				auto node = node_map[node_id];
+				holes_file << node_list[node].x << " " << node_list[node].y << std::endl;
+			}
+			holes_file.close();
+			holes_nodefile.close();
 		}
-		holes_file.close();
-		holes_nodefile.close();
 
 		depot = Point_2(node_list[0].x, node_list[0].y);
 		return lla_to_xy_ptr;

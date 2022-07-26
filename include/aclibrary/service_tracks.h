@@ -36,6 +36,7 @@ namespace aclibrary {
 			Env env_;
 			Kernel::FT offset_;
 			bool line_sweep_;
+			Kernel::FT discretize_length_;
 			std::list <PWHwithDir> pwh_dir_list_;
 			std::vector<Point_2> vertices_;
 			std::vector<std::pair<int , int>> edges_;
@@ -43,16 +44,17 @@ namespace aclibrary {
 			std::vector <ServiceTracksPWH> service_tracks_object_list_;
 			double service_track_total_length_;
 		public:
-			ServiceTracks(const Env &env, const double offset, bool line_sweep) {
+			ServiceTracks(const Env &env, const double offset, bool line_sweep, Kernel::FT discretize_length = 0) {
 				offset_ = FT(offset);
 				env_ = env;
 				offset_ = offset;
 				line_sweep_ = line_sweep;
+				discretize_length_ = discretize_length;
 				env_.GetPWHwithDirList(pwh_dir_list_);
 				for(const auto &pwh_dir:pwh_dir_list_) {
 					ServiceTracksPWH service_tracks_pwh(pwh_dir.pwh, pwh_dir.dir, offset_, line_sweep_, env_.HasRobot());
 					service_tracks_pwh.Solve();
-					service_tracks_pwh.GetTracks(vertices_, edges_);
+					service_tracks_pwh.GetTracks(vertices_, edges_, discretize_length_);
 					service_tracks_object_list_.push_back(service_tracks_pwh);
 				}
 				GenerateEdgeList();
@@ -96,7 +98,7 @@ namespace aclibrary {
 				for(auto &obj:service_tracks_object_list_) {
 					std::vector<Point_2> vertices;
 					std::vector<std::pair<int , int>> edges;
-					obj.GetTracks(vertices, edges);
+					obj.GetTracks(vertices, edges, discretize_length_);
 					for(const auto &edge:edges) {
 						auto vertex_u = vertices[std::get<0>(edge)];
 						auto vertex_v = vertices[std::get<1>(edge)];
@@ -129,7 +131,7 @@ namespace aclibrary {
 				for(auto &obj:service_tracks_object_list_) {
 					std::vector<Point_2> vertices;
 					std::vector<std::pair<int , int>> edges;
-					obj.GetTracks(vertices, edges);
+					obj.GetTracks(vertices, edges, discretize_length_);
 					for(const auto &edge:edges) {
 						auto vertex_u = vertices[std::get<0>(edge)];
 						auto vertex_v = vertices[std::get<1>(edge)];

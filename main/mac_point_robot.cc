@@ -32,6 +32,8 @@
 
 #include <lclibrary/mlc/mlc.h>
 #include <lclibrary/core/graph_io.h>
+#include <lclibrary/mlcmd/depot_clustering.h>
+#include <lclibrary/mlcmd/mem_multidepot.h>
 
 #include <string>
 #include <chrono>
@@ -80,7 +82,7 @@ int main (int argc, char **argv) {
 	std::shared_ptr <lclibrary::LLAtoXY> lla_to_xy_ptr = nullptr;
 	if(config.env_with_geo == true) {
 		lla_to_xy_ptr = ConfigureGeoData(config, depot);
-		use_depot = true;
+		/* use_depot = true; */
 	}
 
 
@@ -96,7 +98,7 @@ int main (int argc, char **argv) {
 
 	auto time_start_service = std::chrono::system_clock::now();
 
-	aclibrary::ServiceTracks service(env, config.field_of_view, false);
+	aclibrary::ServiceTracks service(env, config.field_of_view, false, config.discretize_len);
 
 	std::cout << "Service tracks length: " << service.ComputeServiceTrackLength() << std::endl;
 	auto time_end_service = std::chrono::system_clock::now();
@@ -124,10 +126,72 @@ int main (int argc, char **argv) {
 	/* lclibrary::WriteNodes(graph, config.sol_dir + "node_data"); */
 	/* lclibrary::WriteNonRequiredEdges(graph, config.sol_dir + "non_required_edge_list"); */
 
-	auto mlc_solver = std::make_unique <lclibrary::MLC_MEM> (graph);
-	mlc_solver->Use2Opt(false);
+	std::random_device rd;
+	size_t best_seed;
 
-	if(mlc_solver->Solve()) {
+	std::shared_ptr <lclibrary::MLCMD_Base> mlcmd_solver;
+
+	double best_cost = std::numeric_limits <double>::infinity();
+	std::vector <size_t> best_depots;
+	int solver_status = 1;
+	size_t best_numroutes = lclibrary::kNIL;
+
+	for(size_t nruns = 0; nruns < config.num_runs; ++nruns) {
+		std::cout << "========== Run: " << nruns + 1 << "/" << config.num_runs << " ==========\n";
+
+		std::shared_ptr <lclibrary::MLCMD_Base> mlcmd_solver_run;
+		auto seed = rd();
+		if(config.use_seed) {
+			seed = config.seed;
+		}
+		lclibrary::DepotClustering clustering(graph, config.num_depots, seed, 10000);
+		clustering.Solve();
+		std::vector <size_t> depots;
+		clustering.GetDepotIDs(depots);
+
+		graph->AddDepots(depots);
+
+		if(graph->IsMultipleDepotSet() == false){
+			std::cerr << "Depots are not set. Depots are required for MLC mulit-depot\n";
+			return 1;
+		}
+
+		mlcmd_solver_run = std::make_shared <lclibrary::MLCMD_MEM>(graph);
+		std::cout << "Solved MEM" << std::endl;
+
+		mlcmd_solver_run->Use2Opt(config.use_2opt);
+		solver_status = mlcmd_solver_run->Solve();
+		double cost = mlcmd_solver_run->GetRouteCost();
+		auto numroutes = mlcmd_solver_run->GetNumOfRoutes();
+		if(numroutes < best_numroutes) {
+			mlcmd_solver = mlcmd_solver_run;
+			best_numroutes = numroutes;
+			best_cost = cost;
+			best_seed = seed;
+			best_depots = depots;
+		} else if(numroutes == best_numroutes and cost < best_cost) {
+			mlcmd_solver = mlcmd_solver_run;
+			best_numroutes = numroutes;
+			best_cost = cost;
+			best_seed = seed;
+			best_depots = depots;
+		}
+		std::cout << "====================\n";
+	}
+
+	graph->AddDepots(best_depots);
+
+
+	std::cout << "Number of coverage tours: " << mlcmd_solver->GetNumOfRoutes() << std::endl;
+	std::cout << "Total cost of coverage tours: " << mlcmd_solver->GetRouteCost() << std::endl;
+
+	std::cout << std::boolalpha;
+	std::cout << "solution connectivity check " << mlcmd_solver->CheckSolution() << std::endl;
+
+	/* auto mlc_solver = std::make_unique <lclibrary::MLC_MEM> (graph); */
+	/* mlc_solver->Use2Opt(config.use_2opt); */
+
+	if(solver_status) {
 		return 1;
 	}
 
@@ -137,9 +201,9 @@ int main (int argc, char **argv) {
 	std::chrono::duration<double> duration_service = time_end_service - time_start_service;
 	std::chrono::duration<double> duration_routing = time_end_routing - time_start_routing;
 
-	double depot_x, depot_y;
-	graph->GetDepotXY(depot_x, depot_y);
-	graph->PrintNM();
+	/* double depot_x, depot_y; */
+	/* graph->GetDepotXY(depot_x, depot_y); */
+	/* graph->PrintNM(); */
 
 	env.WriteInitDecomposition(config.sol_dir + config.filenames.init_decomp);
 	env.WriteFinalDecomposition(config.sol_dir + config.filenames.final_decomp);
@@ -173,25 +237,25 @@ int main (int argc, char **argv) {
 	output_filename = config.sol_dir + "routes";
 
 	std::vector <std::shared_ptr <const lclibrary::Graph>> sol_digraph_list;
-	mlc_solver->GetSolDigraphList(sol_digraph_list);
+	mlcmd_solver->GetSolDigraphList(sol_digraph_list);
 
 	std::filesystem::create_directories(plot_temp_dir);
 	env.WriteHolesGnuplot(plot_temp_dir + "hole");
-	aclibrary::GnuplotMap(sol_digraph_list, config.database.dir + config.filenames.outer_polygon, plot_temp_dir + "hole", plot_data_filename, gnuplot_filename, output_filename, true, depot_x, depot_y, num_holes);
+	aclibrary::GnuplotMap(sol_digraph_list, config.database.dir + config.filenames.outer_polygon, plot_temp_dir + "hole", plot_data_filename, gnuplot_filename, output_filename, true, num_holes);
 	gnuplot_status = std::system(("gnuplot " + gnuplot_filename).c_str());
 	if(gnuplot_status != 0) {
 		std::cerr << "gnuplot failed\n";
 	}
 	std::filesystem::remove_all(plot_temp_dir);
 
-	std::cout << std::boolalpha;
-	std::cout << "soldigraphlist size: " << sol_digraph_list.size() << std::endl;
-	std::cout << "Solution check: " << mlc_solver->CheckSolution() << std::endl;
-	std::cout << "Number of routes: " << mlc_solver->GetNumOfRoutes() << std::endl;
-	std::cout << "Total cost: " << mlc_solver->GetRouteCost() << std::endl;
+	/* std::cout << std::boolalpha; */
+	/* std::cout << "soldigraphlist size: " << sol_digraph_list.size() << std::endl; */
+	/* std::cout << "Solution check: " << mlc_solver->CheckSolution() << std::endl; */
+	/* std::cout << "Number of routes: " << mlc_solver->GetNumOfRoutes() << std::endl; */
+	/* std::cout << "Total cost: " << mlc_solver->GetRouteCost() << std::endl; */
 
 	std::string route_data_filename = config.sol_dir + config.filenames.route_data;
-	mlc_solver->WriteWaypointsRoutes(route_data_filename);
+	mlcmd_solver->WriteWaypointsRoutes(route_data_filename);
 
 	std::string vertex_filename = config.database.dir + "/node_data";
 	std::string required_edge_filename = config.database.dir + "/req_edge_list";
@@ -200,6 +264,15 @@ int main (int argc, char **argv) {
 	lclibrary::WriteRequiredEdges(graph, required_edge_filename);
 	lclibrary::WriteNonRequiredEdges(graph, non_required_edge_filename);
 
+	if(config.output.kml) {
+		mlcmd_solver->WriteKMLTerrain(config.sol_dir + "route", config.database.dir + "terrain_data.txt", 200);
+	}
+	if(config.output.video) {
+		std::string video_dir = config.sol_dir + "/video";
+		std::filesystem::create_directory(video_dir);
+		std::filesystem::create_directory(video_dir + "/frames");
+		mlcmd_solver->GenerateVideo(video_dir, 2700);
+	}
 
 	std::string results_filename = config.sol_dir + config.filenames.results;
 	std::ofstream outfile (results_filename, std::ofstream::app);
@@ -207,11 +280,12 @@ int main (int argc, char **argv) {
 	outfile.close();
 	env.WriteResults(results_filename);
 	outfile.open(results_filename, std::ofstream::app);
-	outfile << mlc_solver->GetRouteCost() << " " << mlc_solver->GetTotalNumTurns() << " " << mlc_solver->GetNumOfRoutes() << " ";
+	outfile << mlcmd_solver->GetRouteCost() << " " << mlcmd_solver->GetTotalNumTurns() << " " << mlcmd_solver->GetNumOfRoutes() << " ";
 	outfile << service.ComputeServiceTrackLength() << " ";
 	outfile << duration_decom.count() << " ";
 	outfile << duration_service.count() << " ";
-	outfile << duration_routing.count() << std::endl;
+	outfile << duration_routing.count() << " ";
+	outfile << best_seed << std::endl;
 	outfile.close();
 
 	return 0;

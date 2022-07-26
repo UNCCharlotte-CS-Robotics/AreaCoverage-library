@@ -423,7 +423,7 @@ namespace aclibrary {
 				/* AddExtraEdges(); */
 			}
 
-			void GetTracks(std::vector<Point_2> &vertices, std::vector<std::pair<int , int>> &edges) {
+			void GetTracks(std::vector<Point_2> &vertices, std::vector<std::pair<int , int>> &edges, Kernel::FT discretize_length = 0) {
 
 				for(const auto &p:pwh_.outer_boundary()) {
 					vertices.push_back(p);
@@ -433,6 +433,7 @@ namespace aclibrary {
 						vertices.push_back(p);
 					}
 				}
+				double disc_len = CGAL::to_double(discretize_length);
 				for(const auto &track:service_tracks_) {
 					size_t source_idx = vertices.size();
 					size_t target_idx = vertices.size() + 1;
@@ -452,9 +453,30 @@ namespace aclibrary {
 						if(source_found and target_found)
 							break;
 					}
-					vertices.push_back(source_vertex);
-					vertices.push_back(target_vertex);
-					edges.push_back(std::pair<int, int> (source_idx, target_idx));
+					if(source_found == false) {
+						vertices.push_back(source_vertex);
+					}
+					if(target_found == false) {
+						vertices.push_back(target_vertex);
+					}
+					if(discretize_length == 0 or track.squared_length() <= discretize_length * discretize_length) {
+						edges.push_back(std::pair<int, int> (source_idx, target_idx));
+					} else {
+						auto diff_vec = target_vertex - source_vertex;
+						double dist = sqrt(CGAL::to_double(track.squared_length()));
+						auto curr_len = disc_len;
+
+						vertices.push_back(source_vertex);
+						auto prev_idx = source_idx;
+						while(curr_len < dist) {
+							auto next_vertex = source_vertex + diff_vec * curr_len/dist;
+							vertices.push_back(next_vertex);
+							edges.push_back(std::pair<int, int> (prev_idx, vertices.size() - 1));
+							prev_idx = vertices.size() - 1;
+							curr_len += disc_len;
+						}
+						edges.push_back(std::pair<int, int> (prev_idx, target_idx));
+					}
 				}
 			}
 	};

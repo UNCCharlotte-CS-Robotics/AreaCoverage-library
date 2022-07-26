@@ -74,6 +74,16 @@ namespace aclibrary {
 				std::string route_data;
 			} filenames;
 
+			enum DepotsMode {cluster_auto, cluster, user } depots_mode;
+			size_t depot_ID = 0;
+			std::vector <size_t> depot_IDs;
+			size_t num_depots;
+			size_t num_runs;
+			bool use_seed = false;
+			double seed = 0;
+
+			bool use_2opt;
+
 			struct PlotServiceTracks {
 				bool plot = true;
 				bool plot_nreq_edges = false;
@@ -88,6 +98,7 @@ namespace aclibrary {
 			} writeGeoJSON;
 
 			double capacity;
+			double discretize_len;
 			bool cap_arg = false;
 
 			std::string cost_function;
@@ -105,6 +116,7 @@ namespace aclibrary {
 
 			struct Output {
 				bool env_data = false;
+				bool video = false;
 				bool kml = false;
 				bool data = false;
 				bool edge_data = false;
@@ -206,6 +218,24 @@ namespace aclibrary {
 				filenames.results = filenames_yaml["results"].as<std::string>();
 				filenames.route_data = filenames_yaml["route_data"].as<std::string>();
 
+				std::string depots_config = yaml_config_["depots"]["mode"].as<std::string>();
+				if(depots_config == "cluster_auto") {
+					depots_mode = cluster_auto;
+				} else if (depots_config == "cluster"){
+					depots_mode = cluster;
+					num_depots = yaml_config_["depots"]["num_depots"].as<size_t>();
+				} else if (depots_config == "user") {
+					depots_mode = user;
+					auto yaml_depots = yaml_config_["depots"]["IDs"];
+					for(YAML::const_iterator it = yaml_depots.begin(); it != yaml_depots.end(); ++it) {
+						depot_IDs.push_back(it->as<size_t>());
+					}
+				}
+				use_seed = yaml_config_["depots"]["use_seed"].as<bool>();
+				if(use_seed) {
+					seed = yaml_config_["depots"]["seed"].as<double>();
+				}
+				num_runs = yaml_config_["depots"]["num_runs"].as<size_t>();
 
 				plot_service_tracks.plot = yaml_config_["plot_service_tracks"]["plot"].as<bool>();
 				plot_service_tracks.plot_nreq_edges = yaml_config_["plot_service_tracks"]["plot_nreq_edges"].as<bool>();
@@ -218,6 +248,9 @@ namespace aclibrary {
 				writeGeoJSON.var_name = writeGeoJSON_yaml["var_name"].as<std::string>();
 
 				capacity = yaml_config_["capacity"].as<double>();
+
+				use_2opt = yaml_config_["use_2opt"].as<bool>();
+				discretize_len = yaml_config_["discretize_len"].as<double>();
 
 				cost_function = yaml_config_["cost_function"].as<std::string>();
 				if(cost_function == "travel_time") {
@@ -237,6 +270,7 @@ namespace aclibrary {
 				auto output_yaml = yaml_config_["output"];
 				output.env_data = output_yaml["env_data"].as<bool>();
 				output.kml = output_yaml["kml"].as<bool>();
+				output.video = output_yaml["video"].as<bool>();
 				output.data = output_yaml["data"].as<bool>();
 				output.edge_data = output_yaml["edge_data"].as<bool>();
 				output.geojson = output_yaml["geojson"].as<bool>();
